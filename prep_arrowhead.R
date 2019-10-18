@@ -52,6 +52,6 @@
     system(command)
   }
 }
-
-#YUANLONG VERSION FOR MORE MEMORY
+        arrowhead_command="java -Xms512m -Xmx2048m -jar $arrowhead_bin -c $chromo -m 2000 -r $binSize -k NONE $matFile $outFold"
+#YUANLONG VERSION FOR MORE MEMORY: java -Xmx20g
 #java -Xms512m -Xmx2048m -jar $juicerBin arrowhead -c $chromo -m 2000 -r $binSize -k NONE $hicFile $arrowheadFolder

@@ -4,6 +4,7 @@ topDom_file <- "/media/electron/mnt/etemp/marie/TADcall_yuanlong/25kb/input_call
 topDom_file <- "//mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 topDom_file_test <- "GM12878_chr6_25kb_matrix_pos_zero.txt_test"
 catch_file_test <- "GM12878_chr6_25kb_matrix_catch.txt_test"
+arrowhead_file_test <- "GM12878_chr6_25kb_matrix.pre"
 
 
 if(! require(data.table)) {
@@ -14,6 +15,14 @@ if( !require(Matrix)){
   install.packages("Matrix")
   library(Matrix)
 } 
+
+run_TopDom_to_CaTCH <- TRUE
+run_CaTCH_to_TopDom <- TRUE
+run_TopDom_to_arrowhead <- TRUE
+
+##############################################################################################
+############################################################################################## => TopDom -> CaTCH
+##############################################################################################
 
 TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBased=TRUE) {
   
@@ -61,6 +70,9 @@ TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBas
 }
 TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file_test)
 
+##############################################################################################
+############################################################################################## => CaTCH -> TopDom 
+##############################################################################################
 
 
 CaTCH_to_TopDom <- function(infile, outfile, binSize, inSep="\t", outSep="\t", outZeroBased=TRUE, matDim=NULL) {
@@ -114,7 +126,63 @@ CaTCH_to_TopDom(infile=catch_file_test,
                 binSize=25000,
                 matDim = 6843)
   
+##############################################################################################
+############################################################################################## => TopDom -> arrowhead (pre) 
+##############################################################################################
 
+
+TopDom_to_arrowhead <- function(infile, outfile, inSep="\t", outSep=" ", chrSize=NULL, sizefile=NULL) {
+
+  cat(paste0("... read: ", infile, "\n"))
+  topDom_dt <- fread(infile, sep=inSep, header=FALSE )
+  cat(paste0("... done\n"))
+  
+  chromo <- unique(as.character(topDom_dt[,1]))
+  stopifnot(length(chromo) == 1)
+  
+  stopifnot(is.numeric(topDom_dt[,2]))
+  stopifnot(is.numeric(topDom_dt[,3]))
+  stopifnot(topDom_dt[,2] < topDom_dt[,3])
+  if(is.null(chrSize)) {
+    chrSize <- max(topDom_dt[,3])
+    stopifnot(chrSize == topDom_dt[nrow(topDom_dt), 3])
+  }
+  
+  binSize <- unique(topDom_dt[,3]-topDom_dt[,2])
+  stopifnot(length(binSize) == 1)
+  
+  stopifnot(ncol(topDom_dt) == nrow(topDom_dt) + 3)
+  topDom_dt <- topDom_dt[,-c(1:3)]
+  
+  if(is.null(sizefile)) {
+    sizefile <- file.path(dirname(outfile), paste0(chromo, ".size"))
+  }
+  sizedt <- data.frame(chr=chromo, size=chrSize, stringsAsFactors = FALSE)
+  write.table(sizedt, file=sizefile, row.names=FALSE, col.names=FALSE, sep=outSep)
+  cat(paste0("... written: ", outfile, "\n"))
+  
+  topDom_mat <- Matrix(as.matrix(topDom_dt), sparse=TRUE)
+  matrixDF <- data.frame(summary(topDom_mat))
+  stopifnot(ncol(matrixDF) == 3)
+  # the strand can be both 0 everywhere, but not the fragment
+  # nRows <-nrow(matrixDF)
+  fragVec1 <- rep(0,  nrow(matrixDF))
+  fragVec2 <- rep(1,  nrow(matrixDF))
+  posVec1 <- (matrixDF[,1] - 1 ) * binSize # 0-based
+  posVec2 <- (matrixDF[,2] - 1 ) * binSize # 0-based
+  countVec <- matrixDF[,3]
+  # chrVec <- rep(sub("chr", "", chromo), nRows)
+  # chrVec <- rep(chromo, nRows)
+  # preDT <- data.frame(str1=fragVec1, chr1=chrVec, pos1=posVec1, frag1=fragVec1, 
+  #                     str1=fragVec1, chr1=chrVec, pos1=posVec2, frag1=fragVec2, counts=countVec)
+  preDT <- data.frame(str1=0, chr1=chromo, pos1=posVec1, frag1=0, 
+                      str1=0, chr1=chromo, pos1=posVec2, frag1=1, counts=countVec)
+  cat(paste0("......... write ", infile_pre, "\n"))
+  write.table(preDT, file=infile_pre, row.names=FALSE, col.names=FALSE, sep=outSep, quote=FALSE)
+  cat(paste0("......... run juicer tools pre \n"))
+}
+topDom_to_arrowhead(infile=topdom_file,
+                outfile=arrowhead_file_test)
 
 ##########################################################################################
 ##########################################################################################
@@ -126,4 +194,13 @@ cat(paste0(startTime, "\n", Sys.time(), "\n"))
 
 ##########################################################################################
 ########################################################################################## toy stuff
-#####################################################################################
+##########################################################################################
+# catch_dt <- data.frame(chromo="chr1", binA=c(1,1,1,2,3,3), binB=c(1,2,3,2,2,3), count=c(10,2,1,12,7,9))
+# 
+# countM <- matrix(c(1,3,4,2,3,8,7,5,4,7,10,9,2,5,9,11), byrow=T, nrow=4)
+# sparseMatrix <- Matrix(as.matrix(countM), sparse=T)
+# matrixDF <- data.frame(summary(sparseMatrix))
+# 
+# countM <- matrix(c(1,0,4,2,0,8,0,5,4,0,10,9,2,5,9,11), byrow=T, nrow=4)
+# sparseMatrix <- Matrix(as.matrix(countM), sparse=T)
+# matrixDF <- data.frame(summary(sparseMatrix))
