@@ -61,6 +61,9 @@ get_MoC <- function(file1, file2, chrSize=NULL, nCpu = 1, fillInter=FALSE, meanW
   stopifnot(is.numeric(set2DT$start))
   stopifnot(is.numeric(set2DT$end))
   
+  cat(paste0("# of domains in set1\t=\t", nrow(set1DT), "\n"))
+  cat(paste0("# of domains in set2\t=\t", nrow(set2DT), "\n"))
+  
   if(fillInterGapZero){
     set1DT_nofilled <- set1DT
     set2DT_nofilled <- set2DT

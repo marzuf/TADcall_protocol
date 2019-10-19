@@ -1,5 +1,7 @@
 startTime <- Sys.time()
 
+options(scipen=100)
+
 topDom_file <- "/media/electron/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 topDom_file <- "//mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 topDom_file_test <- "GM12878_chr6_25kb_matrix_pos_zero.txt_test"
@@ -18,7 +20,7 @@ if( !require(Matrix)){
 
 run_TopDom_to_CaTCH <- FALSE
 run_CaTCH_to_TopDom <- FALSE
-run_TopDom_to_arrowhead <- FALSE
+run_TopDom_to_arrowhead <- TRUE
 
 ##############################################################################################
 ############################################################################################## => TopDom -> CaTCH
@@ -130,10 +132,11 @@ if(run_CaTCH_to_TopDom)
 ##############################################################################################
 
 
-TopDom_to_arrowhead <- function(infile, outfile, inSep="\t", outSep=" ", chrSize=NULL, sizefile=NULL) {
+TopDom_to_arrowhead <- function(infile, outfile, inSep="\t",  chrSize=NULL, sizefile=NULL) {
 
   cat(paste0("... read: ", infile, "\n"))
   topDom_dt <- fread(infile, sep=inSep, header=FALSE )
+  topDom_dt <- data.frame(topDom_dt)
   cat(paste0("... done\n"))
   
   chromo <- unique(as.character(topDom_dt[,1]))
@@ -157,8 +160,8 @@ TopDom_to_arrowhead <- function(infile, outfile, inSep="\t", outSep=" ", chrSize
     sizefile <- file.path(dirname(outfile), paste0(chromo, ".size"))
   }
   sizedt <- data.frame(chr=chromo, size=chrSize, stringsAsFactors = FALSE)
-  write.table(sizedt, file=sizefile, row.names=FALSE, col.names=FALSE, sep=outSep)
-  cat(paste0("... written: ", outfile, "\n"))
+  write.table(sizedt, file=sizefile, row.names=FALSE, col.names=FALSE, sep="\t", quote=FALSE) # !!! should be tab-separated
+  cat(paste0("... written: ", sizefile, "\n"))
   
   topDom_mat <- Matrix(as.matrix(topDom_dt), sparse=TRUE)
   matrixDF <- data.frame(summary(topDom_mat))
@@ -174,14 +177,16 @@ TopDom_to_arrowhead <- function(infile, outfile, inSep="\t", outSep=" ", chrSize
   # chrVec <- rep(chromo, nRows)
   # preDT <- data.frame(str1=fragVec1, chr1=chrVec, pos1=posVec1, frag1=fragVec1, 
   #                     str1=fragVec1, chr1=chrVec, pos1=posVec2, frag1=fragVec2, counts=countVec)
-  preDT <- data.frame(str1=0, chr1=chromo, pos1=posVec1, frag1=0, 
-                      str1=0, chr1=chromo, pos1=posVec2, frag1=1, counts=countVec)
-  cat(paste0("......... write ", infile_pre, "\n"))
-  write.table(preDT, file=infile_pre, row.names=FALSE, col.names=FALSE, sep=outSep, quote=FALSE)
-  cat(paste0("......... run juicer tools pre \n"))
+  # <frag1> should be 0 and <frag2> should be 1.
+  # <str1> <chr1> <pos1> <frag1> <str2> <chr2> <pos2> <frag2>
+  preDT <- data.frame(str1=0, chr1=chromo, pos1=pmin(posVec1, posVec2), frag1=0, 
+                      str1=0, chr1=chromo, pos1=pmax(posVec1, posVec2), frag1=1, counts=countVec)
+  write.table(preDT, file=outfile, row.names=FALSE, col.names=FALSE, sep=" ", quote=FALSE) # !!! should be white space-separated
+  cat(paste0("... written: ", outfile, "\n"))
+  
 }
 if(run_TopDom_to_arrowhead)
-  topDom_to_arrowhead(infile=topdom_file,
+  TopDom_to_arrowhead(infile=topDom_file,
                 outfile=arrowhead_file_test)
 
 ##########################################################################################
@@ -205,33 +210,4 @@ cat(paste0(startTime, "\n", Sys.time(), "\n"))
 # sparseMatrix <- Matrix(as.matrix(countM), sparse=T)
 # matrixDF <- data.frame(summary(sparseMatrix))
 # compare CaTCH format
-
-
-catch_out_test <- get(load("CaTCH_out_test.Rdata"))
-catch_out_test_chr <- get(load("CaTCH_out_test_chr.Rdata"))
-catch_out_test_symm <- get(load("CaTCH_out_test_symm.Rdata")) 
-catch_out_test_symm_sorted <- get(load("CaTCH_out_test_symm_sorted.Rdata"))
-catch_out_test_zerobased <- get(load("CaTCH_out_test_zerobased.Rdata"))
-catch_out_test_fullsymm <- get(load("CaTCH_out_test_fullsymm.Rdata"))
-
-
-dt <- catch_out_test[["clusters"]][,-1]
-dt_chr <- catch_out_test_chr[["clusters"]][,-1]
-dt_symm <- catch_out_test_symm[["clusters"]][,-1]
-dt_symm_sorted <- catch_out_test_symm_sorted[["clusters"]][,-1]
-dt_zerobased <- catch_out_test_zerobased[["clusters"]][,-1]
-dt_fullsymm <- catch_out_test_fullsymm[["clusters"]][,-1]
-
-
-all.equal(dt,dt_chr)  # TRUE
-all.equal(dt,dt_symm) # FALSE
-all.equal(dt,dt_symm_sorted) # FALSE
-all.equal(dt,dt_zerobased) # FALSE (but same insulation)
-all.equal(dt,dt_fullsymm) # TRUE
-
-all.equal(dt_symm,dt_symm_sorted) # TRUE
-
-all.equal(dt_symm,dt_fullsymm) # FALSE
-
-
 

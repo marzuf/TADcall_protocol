@@ -60,7 +60,9 @@ source("TopDom.R")
 source("infile_convert.R")
 topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 catch_file <- "GM12878_chr6_25kb_matrix_list.txt"
+stopifnot(file.exists(topDom_file))
 TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file, outZeroBased=FALSE)
+stopifnot(file.exists(catch_file))
 
 # installation instructions: https://github.com/zhanyinx/CaTCH_R/
 # once installed
@@ -90,12 +92,12 @@ CaTCH_dt <- CaTCH_out[["clusters"]]
 
 CaTCH_ndt <- CaTCH_out[["ncluster"]]
 all_ri <- unique(CaTCH_dt$RI)
-ref_ri <- all_ri[which.min(abs(all_ri - ri_thresh))]
+ref_ri <- all_ri[which.min(abs(all_ri - ri_thresh))]  # not exact, e.g. 0.65 is infact 0.6499999999...
 # ref_ri = 0.7 -> 306 domains
 # ref_ri = 0.65 -> 389 domains
 # ref_ri = 0.6 -> 526 domains
-cat(paste0("... selected RI thresh\t=\t", ri_thresh,"\n"))
-cat(paste0("... best matching RI thresh\t=\t", ref_ri,"\n"))
+cat(paste0("... selected RI thresh\t=\t", round(ri_thresh,4),"\n"))
+cat(paste0("... best matching RI thresh\t=\t", round(ref_ri,4),"\n"))
 domainsDT <- CaTCH_dt[CaTCH_dt$RI == ref_ri, c(1, 3, 4)]
 colnames(domainsDT) <- c("chr", "start", "end")
 
@@ -127,15 +129,20 @@ cat(paste0("... written: ", catch_TADs_outFile), "\n")
 ###########################################################################################################################
 # arrowhead
 ###########################################################################################################################
+topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
+juicer_pre_file <- "GM12878_chr6_25kb_matrix.pre" # input file
+stopifnot(file.exists(topDom_file))
+TopDom_to_arrowhead(infile=topDom_file,
+                    outfile=juicer_pre_file)
+stopifnot(file.exists(juicer_pre_file))
 
 chromo <- "chr6"
 bin_size <- 25*1000
-juicer_pre_file = "GM12878_chr6_25kb_matrix.pre" # input file
-juicer_size_file = "hg19" # or "chr6.size"
-juicer_hic_file = "GM12878_chr6_25kb_matrix.hic" # output file
-juicerBin = " /mnt/ed2/shared/TADcompare/Software/juicer/juicer_tools.jar"
-stopifnot(file.exists(juicer_pre_file))
-arrowhead_TADs_outFile <- "arrowhead_final_domains.txt" 
+juicer_size_file <- "chr6.size" # hg19 # ! chr6.size should be tab-separated ! [for using hg19 might be 6, not chr6]
+juicer_hic_file <- "GM12878_chr6_25kb_matrix.hic" # output file
+juicerBin <- " /mnt/ed2/shared/TADcompare/Software/juicer/juicer_tools.jar"
+arrowhead_TADs_outFile <- file.path("out_Arrowhead", "arrowhead_final_domains.txt")
+dir.create(dirname(arrowhead_TADs_outFile), recursive = TRUE)
 
 
 ##### 1) prepare the hic file
@@ -154,8 +161,7 @@ system(juicer_pre_command)
 
 ##### 2) run arrowhead
 memory_setting <- "-Xms512m -Xmx2048m" # for more memory: "-Xmx20g"
-
-arrowhead_out_folder <- "arrowhead_out"
+arrowhead_out_folder <- "out_Arrowhead"
 arrowhead_window <- 2000 # must be even number (Default 2000)
 
 juicer_arrowhead_command <- paste("java", memory_setting, "-jar",  juicerBin, "arrowhead",
@@ -172,7 +178,7 @@ system(juicer_arrowhead_command)
 # more info: https://github.com/aidenlab/juicer/wiki/Arrowhead
 
 ##### 3) prepare output
-
+# (retain smallest level of the hierarchy and non-overlapping)
 arrowhead_out_file <- file.path(arrowhead_out_folder, paste0(bin_size,"_blocks"))
 stopifnot(file.exists(arrowhead_out_file))
 
@@ -189,7 +195,6 @@ colnames(domainsDT_tmp) <- c("chromo", "start", "end")
 stopifnot(is.numeric(domainsDT_tmp$start))
 stopifnot(is.numeric(domainsDT_tmp$end))
 domainsDT_tmp$start <- domainsDT_tmp$start + 1
-
 # ensure domains are ordered
 domainsDT_tmp <- domainsDT_tmp[order(domainsDT_tmp$start,domainsDT_tmp$end ),]
 rownames(domainsDT_tmp) <- NULL
@@ -197,12 +202,13 @@ domainsDT_tmp <- unique(domainsDT_tmp) # use unique to ensure that I can start >
 # for each domain -> check if one is nested and if it overlaps
 domainsDT <- data.frame(chromo = character(0), start = numeric(0), end = numeric(0), stringsAsFactors = F)
 
-# discard potentially nested or overlapping domains
+# discard if potentially nested or overlapping domains
 for(i in seq_len(nrow(domainsDT_tmp))) {
   curr_chromo <- domainsDT_tmp$chromo[i] 
   curr_start <- domainsDT_tmp$start[i] 
   curr_end <- domainsDT_tmp$end[i]
   # can I find a nested domain ? i.e. start between curr_start and curr_end and end between curr_start and curr_end
+  # if yes -> discard (I retain smallest level of hierarchy)
   if(any(
     domainsDT_tmp$start[-i] >= curr_start & domainsDT_tmp$start[-i] <= curr_end &  
     domainsDT_tmp$end[-i] >= curr_start & domainsDT_tmp$end[-i] <= curr_end 
@@ -211,7 +217,7 @@ for(i in seq_len(nrow(domainsDT_tmp))) {
   if(any(curr_start < domainsDT$end)) next
   stopifnot(curr_start > domainsDT$end & curr_end > domainsDT$end)
   curr_line <- data.frame(chromo = curr_chromo, start = curr_start, end = curr_end, stringsAsFactors = F )
-  stopifnot( (curr_end - curr_start + 1) %% binSize == 0)
+  stopifnot( (curr_end - curr_start + 1) %% bin_size == 0)
   domainsDT <- rbind(domainsDT, curr_line)
 }
 stopifnot(domainsDT$start %in% domainsDT_tmp$start & domainsDT$end %in% domainsDT_tmp$end)
@@ -221,8 +227,11 @@ stopifnot(domainsDT$end > domainsDT$start)
 cat(paste0("... # domains before post-processing\t=\t", nrow(domainsDT_tmp), "\n"))
 cat(paste0("... # domains after post-processing\t=\t", nrow(domainsDT), "\n"))
 
+# discdDomains <- which(! domainsDT_tmp$start %in% domainsDT$start)
+# domainsDT_tmp[1:3,]
+
 write.table(domainsDT, file=arrowhead_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
-cat(paste0("... written: ", arrowhead_TADs_outFile))
+cat(paste0("... written: ", arrowhead_TADs_outFile, "\n"))
 
 ###########################################################################################################################
 # MoC calculation
@@ -236,5 +245,9 @@ get_MoC(dt1,dt2)
 get_MoC("moc_test1.txt", "moc_test2.txt")
 get_MoC("moc_test1.txt", "moc_test1b.txt")
                     
+get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt") # 0.55
+get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.54
+get_MoC("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.65
+
                     
                     
