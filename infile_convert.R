@@ -10,26 +10,26 @@ arrowhead_file_test <- "GM12878_chr6_25kb_matrix.pre"
 if(! require(data.table)) {
   install.packages("data.table")
   library(data.table)
-} 
+}
 if( !require(Matrix)){
   install.packages("Matrix")
   library(Matrix)
-} 
+}
 
-run_TopDom_to_CaTCH <- TRUE
-run_CaTCH_to_TopDom <- TRUE
-run_TopDom_to_arrowhead <- TRUE
+run_TopDom_to_CaTCH <- FALSE
+run_CaTCH_to_TopDom <- FALSE
+run_TopDom_to_arrowhead <- FALSE
 
 ##############################################################################################
 ############################################################################################## => TopDom -> CaTCH
 ##############################################################################################
 
-TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBased=TRUE) {
+TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBased=FALSE) {
   
   cat(paste0("... read: ", infile, "\n"))
   topDom_dt <- fread(infile, sep=inSep, header=FALSE )
   cat(paste0("... done\n"))
-  
+  topDom_dt <- data.frame(topDom_dt)
   chromo <- unique(as.character(topDom_dt[,1]))
   stopifnot(length(chromo) == 1)
   
@@ -64,23 +64,23 @@ TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBas
     count = count_values,
     stringsAsFactors = FALSE
   ) 
-  write.table(out_dt, file=outfile, row.names = FALSE, col.names = FALSE, sep=outSep)
+  write.table(out_dt, file=outfile, row.names = FALSE, col.names = FALSE, sep=outSep, quote=FALSE)
   cat(paste0("... written: ", outfile, "\n"))
   
 }
-TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file_test)
+if(run_TopDom_to_CaTCH) TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file_test)
 
 ##############################################################################################
 ############################################################################################## => CaTCH -> TopDom 
 ##############################################################################################
 
 
-CaTCH_to_TopDom <- function(infile, outfile, binSize, inSep="\t", outSep="\t", outZeroBased=TRUE, matDim=NULL) {
+CaTCH_to_TopDom <- function(infile, outfile, binSize, inSep="\t", outSep="\t", inZeroBased=FALSE, matDim=NULL) {
   
   cat(paste0("... read: ", infile, "\n"))
   catch_dt <- fread(infile, sep=inSep, header=FALSE )
   cat(paste0("... done\n"))
-  
+  catch_dt <- data.frame(catch_dt)
   stopifnot(ncol(catch_dt) == 4)
   colnames(catch_dt) <- c("chromo", "binA", "binB", "count")
 
@@ -106,8 +106,8 @@ CaTCH_to_TopDom <- function(infile, outfile, binSize, inSep="\t", outSep="\t", o
   
   threeCols <- data.frame(
     chromo = rep(chromo, nrow(catch_dt)),
-    binA = seq(0, binSize, length.out=nrow(catch_dt)),
-    binB = seq(binSize, binSize, length.out=nrow(catch_dt)),
+    binA = seq(0, by=binSize, length.out=nrow(catch_dt)),
+    binB = seq(binSize, by=binSize, length.out=nrow(catch_dt)),
     stringsAsFactors = FALSE
   )
 
@@ -115,13 +115,12 @@ CaTCH_to_TopDom <- function(infile, outfile, binSize, inSep="\t", outSep="\t", o
     
   stopifnot(ncol(topDom_dt) == nrow(topDom_dt) + 3)
   
-  
-  
   write.table(topDom_dt, file=outfile, row.names = FALSE, col.names = FALSE, sep=outSep)
   cat(paste0("... written: ", outfile, "\n"))
   
 }
-CaTCH_to_TopDom(infile=catch_file_test,
+if(run_CaTCH_to_TopDom) 
+  CaTCH_to_TopDom(infile=catch_file_test,
                 outfile=topDom_file_test,
                 binSize=25000,
                 matDim = 6843)
@@ -181,7 +180,8 @@ TopDom_to_arrowhead <- function(infile, outfile, inSep="\t", outSep=" ", chrSize
   write.table(preDT, file=infile_pre, row.names=FALSE, col.names=FALSE, sep=outSep, quote=FALSE)
   cat(paste0("......... run juicer tools pre \n"))
 }
-topDom_to_arrowhead(infile=topdom_file,
+if(run_TopDom_to_arrowhead)
+  topDom_to_arrowhead(infile=topdom_file,
                 outfile=arrowhead_file_test)
 
 ##########################################################################################
@@ -204,3 +204,34 @@ cat(paste0(startTime, "\n", Sys.time(), "\n"))
 # countM <- matrix(c(1,0,4,2,0,8,0,5,4,0,10,9,2,5,9,11), byrow=T, nrow=4)
 # sparseMatrix <- Matrix(as.matrix(countM), sparse=T)
 # matrixDF <- data.frame(summary(sparseMatrix))
+# compare CaTCH format
+
+
+catch_out_test <- get(load("CaTCH_out_test.Rdata"))
+catch_out_test_chr <- get(load("CaTCH_out_test_chr.Rdata"))
+catch_out_test_symm <- get(load("CaTCH_out_test_symm.Rdata")) 
+catch_out_test_symm_sorted <- get(load("CaTCH_out_test_symm_sorted.Rdata"))
+catch_out_test_zerobased <- get(load("CaTCH_out_test_zerobased.Rdata"))
+catch_out_test_fullsymm <- get(load("CaTCH_out_test_fullsymm.Rdata"))
+
+
+dt <- catch_out_test[["clusters"]][,-1]
+dt_chr <- catch_out_test_chr[["clusters"]][,-1]
+dt_symm <- catch_out_test_symm[["clusters"]][,-1]
+dt_symm_sorted <- catch_out_test_symm_sorted[["clusters"]][,-1]
+dt_zerobased <- catch_out_test_zerobased[["clusters"]][,-1]
+dt_fullsymm <- catch_out_test_fullsymm[["clusters"]][,-1]
+
+
+all.equal(dt,dt_chr)  # TRUE
+all.equal(dt,dt_symm) # FALSE
+all.equal(dt,dt_symm_sorted) # FALSE
+all.equal(dt,dt_zerobased) # FALSE (but same insulation)
+all.equal(dt,dt_fullsymm) # TRUE
+
+all.equal(dt_symm,dt_symm_sorted) # TRUE
+
+all.equal(dt_symm,dt_fullsymm) # FALSE
+
+
+

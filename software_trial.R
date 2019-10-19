@@ -5,8 +5,10 @@ options(scipen=100)
 ###########################################################################################################################
 topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 stopifnot(file.exists(topDom_file))
-topDom_outFile <- "topDom_results"
-topDom_TADs_outFile <- "topDom_final_domains.txt"
+topDom_outFile <- file.path("out_TopDom", "topDom_results")
+topDom_TADs_outFile <- file.path("out_TopDom", "topDom_final_domains.txt")
+dir.create(dirname(topDom_outFile), recursive = TRUE)
+dir.create(dirname(topDom_TADs_outFile), recursive = TRUE)
 
 if(!require(TopDom)) {
   if( !require(remotes)) {
@@ -22,29 +24,25 @@ topDom_out <- TopDom(topDom_file, window.size=5, outFile=topDom_outFile)
   # chr from.id from.coord to.id to.coord    tag   size
   # 1  chr6       1          0     6   150000    gap 150000
   # 9  chr6       7     150000    16   400000 domain 250000
-  # 10 chr6      17     400000    23   575000 domain 175000
-
   # > head(topDom_out[["bed"]])                                                                                                                                                                                 
   # chrom chromStart chromEnd   name
   # 1   chr6          0   150000    gap
   # 9   chr6     150000   400000 domain
-  # 10  chr6     400000   575000 domain
-
   # > head(topDom_out[["binSignal"]])                                                                                                                                                                           
   # id  chr from.coord to.coord local.ext  mean.cf pvalue
   # 1  1 chr6          0    25000      -0.5   0.0000      1
   # 2  2 chr6      25000    50000      -0.5   0.0000      1
-  # 3  3 chr6      50000    75000      -0.5   0.0000      1
 
 ##### 2) prepare output
 topDom_tads_dt <- topDom_out[["bed"]]
 topDom_tads_dt <- topDom_tads_dt[as.character(topDom_tads_dt$name) == "domain",]
 out_dt <- topDom_tads_dt[,c("chrom", "chromStart","chromEnd")]
-
+# to 1-based start positions:
+out_dt$chromStart <- out_dt$chromStart + 1 
+# ensure ordering
+out_dt <- out_dt[order(out_dt$chromStart, out_dt$chromEnd),]
 write.table(out_dt, file=topDom_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
-cat(paste0("... written: ", topDom_TADs_outFile))
-
-  
+cat(paste0("... written: ", topDom_TADs_outFile, "\n"))
 
 ###########################################################################################################################
 # TopDom - original script version
@@ -59,13 +57,17 @@ source("TopDom.R")
 ###########################################################################################################################
 # CaTCH
 ###########################################################################################################################
+source("infile_convert.R")
+topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
+catch_file <- "GM12878_chr6_25kb_matrix_list.txt"
+TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file, outZeroBased=FALSE)
+
 # installation instructions: https://github.com/zhanyinx/CaTCH_R/
 # once installed
 stopifnot(require(CaTCH))
-
-catch_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_list.txt"
 stopifnot(file.exists(catch_file))
-catch_TADs_outFile <- "CaTCH_final_domains.txt"
+catch_TADs_outFile <- file.path("out_CaTCH", "CaTCH_final_domains.txt")
+dir.create(dirname(catch_TADs_outFile), recursive = TRUE)
 
 chromo <- "chr6"
 ri_thresh <- 0.65
@@ -99,7 +101,7 @@ colnames(domainsDT) <- c("chr", "start", "end")
 
 nDomains <- CaTCH_ndt$ndomains[CaTCH_ndt$RI == ref_ri]
 stopifnot(length(nDomains) == 1)
-stopifnot(nDomains == domainsDT)
+stopifnot(nDomains == nrow(domainsDT))
 
 domainsDT$start <- (domainsDT$start - 1) * bin_size + 1 
 domainsDT$end <- domainsDT$end * bin_size 
@@ -114,9 +116,10 @@ domainsDT$end <- domainsDT$end * bin_size
 # 1       1   50000
 # 1   50001  200000
 # 1  200001  575000
-
+# ensure ordering
+domainsDT <- domainsDT[order(domainsDT$start, domainsDT$end),]
 write.table(domainsDT, file=catch_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
-cat(paste0("... written: ", catch_TADs_outFile))
+cat(paste0("... written: ", catch_TADs_outFile), "\n")
 
 
 # multi-threads (if > 1 chromo) domain.call.parallel(inputs,ncpu=parallel::detectCores()-1L)
@@ -221,4 +224,17 @@ cat(paste0("... # domains after post-processing\t=\t", nrow(domainsDT), "\n"))
 write.table(domainsDT, file=arrowhead_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
 cat(paste0("... written: ", arrowhead_TADs_outFile))
 
+###########################################################################################################################
+# MoC calculation
+###########################################################################################################################
 
+source("get_MoC.R")
+dt1 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
+dt2 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
+
+get_MoC(dt1,dt2)
+get_MoC("moc_test1.txt", "moc_test2.txt")
+get_MoC("moc_test1.txt", "moc_test1b.txt")
+                    
+                    
+                    
