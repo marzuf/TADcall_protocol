@@ -1,8 +1,8 @@
 # 
 #' Calculate Measure of Concordance (MoC); adapted from formula given in Pfitzner et al. 2009
 #'
-#' @param file1 Path to file for 1st partition (3-column BED format chromo-start-end; no header)
-#' @param file2 Path to file for 2nd partition (3-column BED format chromo-start-end; no header)
+#' @param file1 Path to file for 1st partition (3-column BED format chromo-start-end; no header) or 3-column dataframe object
+#' @param file2 Path to file for 2nd partition (3-column BED format chromo-start-end; no header) or 3-column dataframe object
 #' @param chrSize Chromo size [bp]
 #' @param nCpu Nbr of cpu available [use of foreach]
 #' @param fillInter Consider inter-TAD gaps as TADs ? [in our analyses: TRUE]
@@ -12,7 +12,7 @@
 #' @param noMinusOne Do not substract 1 to the MoC ? [in our analyses: FALSE]
 #' @param fillInterGapZero Set score to 0 if comparing 1 TAD with interTAD ? [in our analyses: FALSE]
 
-# requirement: doMC, foreach
+# requirement: foreach, doMC (if nCpu > 1)
 
 get_MoC <- function(file1, file2, chrSize=NULL, nCpu = 1, fillInter=FALSE, meanWithInter = FALSE, correctClust = FALSE, binSize = NA, noMinusOne = FALSE, fillInterGapZero = FALSE) {
 
@@ -60,6 +60,10 @@ get_MoC <- function(file1, file2, chrSize=NULL, nCpu = 1, fillInter=FALSE, meanW
   }
   stopifnot(is.numeric(set2DT$start))
   stopifnot(is.numeric(set2DT$end))
+  
+  stopifnot(length(unique(set1DT$chromo)) == 1)
+  stopifnot(length(unique(set2DT$chromo)) == 1)
+  stopifnot(unique(set2DT$chromo) == unique(set1DT$chromo))
   
   cat(paste0("# of domains in set1\t=\t", nrow(set1DT), "\n"))
   cat(paste0("# of domains in set2\t=\t", nrow(set2DT), "\n"))

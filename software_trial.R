@@ -3,6 +3,9 @@ options(scipen=100)
 ###########################################################################################################################
 # TopDom - package version
 ###########################################################################################################################
+### package installation:
+# - in R console: require(remotes); remotes::install_github("HenrikBengtsson/TopDom") # might need to install.packages("remotes")
+
 topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 stopifnot(file.exists(topDom_file))
 topDom_outFile <- file.path("out_TopDom", "topDom_results")
@@ -57,6 +60,12 @@ source("TopDom.R")
 ###########################################################################################################################
 # CaTCH
 ###########################################################################################################################
+
+### package installation:
+# - download CaTCH_1.0.tar.gz from https://github.com/zhanyinx/CaTCH_R
+# - in a terminal: R CMD check CaTCH_1.0.tar.gz # to check that you have all libraries
+# - in a terminal: R CMD INSTALL CaTCH_1.0.tar.gz # to install the package
+
 source("infile_convert.R")
 topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 catch_file <- "GM12878_chr6_25kb_matrix_list.txt"
@@ -129,6 +138,8 @@ cat(paste0("... written: ", catch_TADs_outFile), "\n")
 ###########################################################################################################################
 # arrowhead
 ###########################################################################################################################
+# installation instruction: https://github.com/aidenlab/juicer/wiki/Installation
+
 topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
 juicer_pre_file <- "GM12878_chr6_25kb_matrix.pre" # input file
 stopifnot(file.exists(topDom_file))
@@ -249,5 +260,76 @@ get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_doma
 get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.54
 get_MoC("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.65
 
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+get_MoC(topdom_dt, catch_dt) # 0.65
+get_MoC(topdom_dt, arrowhead_dt) # 0.54
+get_MoC(arrowhead_dt, catch_dt) # 0.55
                     
-                    
+
+###########################################################################################################################
+# bin Jaccard Index
+###########################################################################################################################
+
+source("other_metrics.R")
+
+get_bin_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", binSize = bin_size) # 0.65
+get_bin_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", binSize = bin_size) # 0.68
+get_bin_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", binSize = bin_size) # 0.96
+  
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+get_bin_JaccardIndex(topdom_dt, catch_dt, binSize = bin_size) # 0.96
+get_bin_JaccardIndex(topdom_dt, arrowhead_dt, binSize = bin_size) # 0.68
+get_bin_JaccardIndex(arrowhead_dt, catch_dt, binSize = bin_size) #  0.65
+
+
+
+###########################################################################################################################
+# boundary Jaccard Index
+###########################################################################################################################
+
+source("other_metrics.R")
+
+get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", tolRad = bin_size*2, matchFor="all")  # 0.62
+get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", tolRad = bin_size, matchFor="all")  # 0.50
+get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.63
+get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size, matchFor="all") # 0.50
+get_boundaries_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.66
+get_boundaries_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size, matchFor="all") # 0.54
+
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+get_boundaries_JaccardIndex(topdom_dt, catch_dt, tolRad = bin_size*2, matchFor="all") # 0.66
+get_boundaries_JaccardIndex(topdom_dt, arrowhead_dt, tolRad = bin_size*2, matchFor="all") # 0.63
+get_boundaries_JaccardIndex(arrowhead_dt, catch_dt, tolRad = bin_size*2, matchFor="all") #  0.62
+
+
+###########################################################################################################################
+# TAD ratio of thresholded matching
+###########################################################################################################################
+
+source("other_metrics.R")
+
+get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all")  # 0.66
+get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", coverMatchRatioThresh = 0.8, matchFor="all")  # 0.52
+get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.73
+get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.8, matchFor="all") # 0.53
+get_ratioMatchingTADs("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.90
+get_ratioMatchingTADs("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.8, matchFor="all") # 0.67
+
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+get_ratioMatchingTADs(topdom_dt, catch_dt, coverMatchRatioThresh = 0.8, matchFor="all") # 0.67
+get_ratioMatchingTADs(topdom_dt, arrowhead_dt, coverMatchRatioThresh = 0.8, matchFor="all") # 0.53
+get_ratioMatchingTADs(arrowhead_dt, catch_dt, coverMatchRatioThresh = 0.8, matchFor="all") #  0.52
+
+
+
+
+  
+  
