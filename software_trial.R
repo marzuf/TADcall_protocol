@@ -1,5 +1,9 @@
 options(scipen=100)
 
+# ***************************************************************************************************************************************************
+# # *************************** PART I: TAD calling *************************************************************************************************
+# ***************************************************************************************************************************************************
+
 ###########################################################################################################################
 # TopDom - package version
 ###########################################################################################################################
@@ -35,6 +39,9 @@ topDom_out <- TopDom(topDom_file, window.size=5, outFile=topDom_outFile)
   # id  chr from.coord to.coord local.ext  mean.cf pvalue
   # 1  1 chr6          0    25000      -0.5   0.0000      1
   # 2  2 chr6      25000    50000      -0.5   0.0000      1
+# system.time(topDom_out <- TopDom(topDom_file, window.size=5, outFile=topDom_outFile))
+# user  system elapsed 
+# 54.278   0.632  54.915 
 
 ##### 2) prepare output
 topDom_tads_dt <- topDom_out[["bed"]]
@@ -44,6 +51,9 @@ out_dt <- topDom_tads_dt[,c("chrom", "chromStart","chromEnd")]
 out_dt$chromStart <- out_dt$chromStart + 1 
 # ensure ordering
 out_dt <- out_dt[order(out_dt$chromStart, out_dt$chromEnd),]
+stopifnot(domainsDT$end > domainsDT$start)
+stopifnot(diff(domainsDT$end) > 0)
+stopifnot(diff(domainsDT$start) > 0)
 write.table(out_dt, file=topDom_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
 cat(paste0("... written: ", topDom_TADs_outFile, "\n"))
 
@@ -86,6 +96,10 @@ bin_size <- 25*1000
 
 ##### 1) run CaTCH
 CaTCH_out <- domain.call(catch_file)
+# system.time(CaTCH_out <- domain.call(catch_file))
+# user  system elapsed 
+# 35.072   1.337  36.501 
+
 
 ##### 2) prepare output
 CaTCH_dt <- CaTCH_out[["clusters"]]
@@ -129,6 +143,10 @@ domainsDT$end <- domainsDT$end * bin_size
 # 1  200001  575000
 # ensure ordering
 domainsDT <- domainsDT[order(domainsDT$start, domainsDT$end),]
+stopifnot(domainsDT$end > domainsDT$start)
+stopifnot(diff(domainsDT$end) > 0)
+stopifnot(diff(domainsDT$start) > 0)
+
 write.table(domainsDT, file=catch_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
 cat(paste0("... written: ", catch_TADs_outFile), "\n")
 
@@ -168,6 +186,9 @@ juicer_pre_command <- paste("java -Xmx2g -jar",  juicerBin, "pre",
 
 cat(paste0(juicer_pre_command, "\n"))
 system(juicer_pre_command)
+# system.time(system(juicer_pre_command))
+# user  system elapsed 
+# 376.311   5.578 379.448 
 # for additional optional arguments: https://github.com/aidenlab/juicer/wiki/Pre
 
 ##### 2) run arrowhead
@@ -183,9 +204,13 @@ juicer_arrowhead_command <- paste("java", memory_setting, "-jar",  juicerBin, "a
                   juicer_hic_file, arrowhead_out_folder)
 cat(paste0(juicer_arrowhead_command, "\n"))
 system(juicer_arrowhead_command)
+# system.time(system(juicer_arrowhead_command))
+# Arrowhead complete
+# user  system elapsed 
+# 33.669   3.213  34.543 
+
 
 # add --threads for multi-threads
-
 # more info: https://github.com/aidenlab/juicer/wiki/Arrowhead
 
 ##### 3) prepare output
@@ -240,32 +265,132 @@ cat(paste0("... # domains after post-processing\t=\t", nrow(domainsDT), "\n"))
 
 # discdDomains <- which(! domainsDT_tmp$start %in% domainsDT$start)
 # domainsDT_tmp[1:3,]
+# ensure ordering
+domainsDT <- domainsDT[order(domainsDT$start, domainsDT$end),]
+stopifnot(domainsDT$end > domainsDT$start)
+stopifnot(diff(domainsDT$end) > 0)
+stopifnot(diff(domainsDT$start) > 0)
 
 write.table(domainsDT, file=arrowhead_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
 cat(paste0("... written: ", arrowhead_TADs_outFile, "\n"))
+
+
+
+
+###########################################################################################################################
+# HiCseg
+###########################################################################################################################
+
+hicseg_TADs_outFile <- file.path("out_HiCseg", "hicseg_final_domains.txt")
+dir.create(dirname(hicseg_TADs_outFile), recursive = TRUE)
+
+# ! # of change points
+hicseg_model <- "D"
+hicseg_dist <- "G" # Gaussian for normalized data
+hicseg_maxChangePoints <- 1000 # might be slow if too many
+
+if(!require(HiCseg)) {
+  install.packages("HiCseg")
+  stopifnot(require(HiCseg))
+}
+
+
+topDom_file <- "/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
+hicseg_dt <- read.delim(topDom_file, header=FALSE)
+stopifnot(ncol(hicseg_dt) == nrow(hicseg_dt) + 3)
+hicseg_dt <- hicseg_dt[,-c(1:3)]
+stopifnot(ncol(hicseg_dt) == nrow(hicseg_dt))
+hicseg_mat <- as.matrix(hicseg_dt)
+stopifnot(ncol(hicseg_mat) == nrow(hicseg_mat))
+
+mat_size <- dim(hicseg_mat)[1] #6843
+
+##### 1) run HiCseg (! may be slow !)
+
+HiCseg_out <- HiCseg_linkC_R(mat_data = hicseg_mat,
+                            size_mat = mat_size, # Size of the data matrix
+                             nb_change_max = hicseg_maxChangePoints, # Maximal number of change-points
+                             distrib = hicseg_dist, # "B" is for Negative Binomial distribution, "P" is for the Poisson distribution and "G" is for the Gaussian distribution.
+                             model = hicseg_model) #  "D" for block-diagonal and "Dplus" for the extended block-diagonal model.
+
+# system.time():
+#     user   system  elapsed 
+# 1861.582    6.838 1868.378 
+  
+
+# t_hat	: Contains the estimated change-points
+# J	: Values of the log-likelihood for different number of change-points up to some constants
+# t_est_mat	 :It gives the matrix of the estimated change-points for different number of change-points
+# head(HiCseg_out[["t_hat"]])
+# [1]  3  5  7  9 13 16
+# head(HiCseg_out[["J"]])
+# [1] -569707711663 -566712112603 -565114308231 -563626723790 -562195217366 -560876084365
+# head(HiCseg_out[["t_est_mat"]])
+
+### 2) prepare output
+
+# => from the vignette, if the 1st value is 39, draws the domain border at 40 -> the 39th position is included in the 1st domain
+# => hence, if the first valuees are 2 and 4, for 25kb data, the domains should range 1-50'000 and 50'001-100'000
+
+changePoints_bin <- HiCseg_out[["t_hat"]]
+changePoints_bin <- changePoints_bin[changePoints_bin > 0]  # because if it found less change points than nb_change_max, wil fill with 0
+
+chromoSize <- mat_size * bin_size
+changePoints <- changePoints_bin * bin_size
+curr_start <- 1
+domainsDT <- data.frame(chromo=character(0), start=numeric(0), end=numeric(0))  
+
+for(point in changePoints) {
+  stopifnot( ((point - curr_start + 1) %% bin_size) == 0 )
+  tmpDT <- data.frame(chromo = chromo, start=curr_start, end = point)
+  domainsDT <- rbind(domainsDT, tmpDT)
+  curr_start <- point + 1
+}
+if(curr_start < chromoSize){
+  lastDT <- data.frame(chromo = chromo, start = curr_start, end = chromoSize)
+  domainsDT <- rbind(domainsDT, lastDT)
+}
+# ensure ordering
+domainsDT <- domainsDT[order(domainsDT$start, domainsDT$end),]
+
+stopifnot(domainsDT$end > domainsDT$start)
+stopifnot(diff(domainsDT$end) > 0)
+stopifnot(diff(domainsDT$start) > 0)
+
+write.table(domainsDT, file=hicseg_TADs_outFile, col.names=FALSE, row.names=FALSE, sep="\t", quote=FALSE)
+cat(paste0("... written: ", hicseg_TADs_outFile, "\n"))
+
+
+# ***************************************************************************************************************************************************
+# # *************************** PART II: comparison of genomic partitions ***************************************************************************
+# ***************************************************************************************************************************************************
+
+
 
 ###########################################################################################################################
 # MoC calculation
 ###########################################################################################################################
 
 source("get_MoC.R")
-dt1 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
-dt2 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
 
-get_MoC(dt1,dt2)
-get_MoC("moc_test1.txt", "moc_test2.txt")
-get_MoC("moc_test1.txt", "moc_test1b.txt")
-                    
 get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt") # 0.55
 get_MoC("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.54
 get_MoC("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.65
+get_MoC("out_HiCseg/hicseg_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 0.69
+get_MoC("out_HiCseg/hicseg_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt") # 0.57
+get_MoC("out_HiCseg/hicseg_final_domains.txt", "out_Arrowhead/arrowhead_final_domains.txt") # 0.42
 
-topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end")) 
 catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 get_MoC(topdom_dt, catch_dt) # 0.65
 get_MoC(topdom_dt, arrowhead_dt) # 0.54
 get_MoC(arrowhead_dt, catch_dt) # 0.55
+get_MoC(hicseg_dt, arrowhead_dt) # 0.42 
+get_MoC(hicseg_dt, catch_dt) # 0.57
+get_MoC(hicseg_dt, topdom_dt) # 0.69
                     
 
 ###########################################################################################################################
@@ -277,13 +402,23 @@ source("other_metrics.R")
 get_bin_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", binSize = bin_size) # 0.65
 get_bin_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", binSize = bin_size) # 0.68
 get_bin_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", binSize = bin_size) # 0.96
-  
+get_bin_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_TopDom/topDom_final_domains.txt", binSize = bin_size) # 0.96
+get_bin_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", binSize = bin_size) # 1
+get_bin_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_Arrowhead/arrowhead_final_domains.txt", binSize = bin_size) # 0.65
+
+
 topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
 get_bin_JaccardIndex(topdom_dt, catch_dt, binSize = bin_size) # 0.96
 get_bin_JaccardIndex(topdom_dt, arrowhead_dt, binSize = bin_size) # 0.68
 get_bin_JaccardIndex(arrowhead_dt, catch_dt, binSize = bin_size) #  0.65
+
+get_bin_JaccardIndex(hicseg_dt, arrowhead_dt, binSize = bin_size) # 0.65
+get_bin_JaccardIndex(hicseg_dt, catch_dt, binSize = bin_size) # 1
+get_bin_JaccardIndex(hicseg_dt, topdom_dt, binSize = bin_size) # 0.96 
 
 
 
@@ -299,13 +434,21 @@ get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_To
 get_boundaries_JaccardIndex("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size, matchFor="all") # 0.50
 get_boundaries_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.66
 get_boundaries_JaccardIndex("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size, matchFor="all") # 0.54
+get_boundaries_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_TopDom/topDom_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.71
+get_boundaries_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.58
+get_boundaries_JaccardIndex("out_HiCseg/hicseg_final_domains.txt", "out_Arrowhead/arrowhead_final_domains.txt", tolRad = bin_size*2, matchFor="all") # 0.49
 
 topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
 get_boundaries_JaccardIndex(topdom_dt, catch_dt, tolRad = bin_size*2, matchFor="all") # 0.66
 get_boundaries_JaccardIndex(topdom_dt, arrowhead_dt, tolRad = bin_size*2, matchFor="all") # 0.63
 get_boundaries_JaccardIndex(arrowhead_dt, catch_dt, tolRad = bin_size*2, matchFor="all") #  0.62
+get_boundaries_JaccardIndex(hicseg_dt, arrowhead_dt, tolRad = bin_size*2, matchFor="all") #  0.49
+get_boundaries_JaccardIndex(hicseg_dt, catch_dt, tolRad = bin_size*2, matchFor="all") # 0.58
+get_boundaries_JaccardIndex(hicseg_dt, topdom_dt, tolRad = bin_size*2, matchFor="all") # 0.71
 
 
 ###########################################################################################################################
@@ -320,16 +463,101 @@ get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/t
 get_ratioMatchingTADs("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.8, matchFor="all") # 0.53
 get_ratioMatchingTADs("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.90
 get_ratioMatchingTADs("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.8, matchFor="all") # 0.67
+get_ratioMatchingTADs("out_HiCseg/hicseg_final_domains.txt", "out_TopDom/topDom_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.92
+get_ratioMatchingTADs("out_HiCseg/hicseg_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.90
+get_ratioMatchingTADs("out_HiCseg/hicseg_final_domains.txt", "out_Arrowhead/arrowhead_final_domains.txt", coverMatchRatioThresh = 0.5, matchFor="all") # 0.62
 
 topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
 get_ratioMatchingTADs(topdom_dt, catch_dt, coverMatchRatioThresh = 0.8, matchFor="all") # 0.67
 get_ratioMatchingTADs(topdom_dt, arrowhead_dt, coverMatchRatioThresh = 0.8, matchFor="all") # 0.53
 get_ratioMatchingTADs(arrowhead_dt, catch_dt, coverMatchRatioThresh = 0.8, matchFor="all") #  0.52
+get_ratioMatchingTADs(hicseg_dt, arrowhead_dt, coverMatchRatioThresh = 0.5, matchFor="all") # 0.62
+get_ratioMatchingTADs(hicseg_dt, catch_dt, coverMatchRatioThresh = 0.5, matchFor="all") # 0.90
+get_ratioMatchingTADs(hicseg_dt, topdom_dt, coverMatchRatioThresh = 0.5, matchFor="all") # 0.92
+
+###########################################################################################################################
+# variation of information
+###########################################################################################################################
+
+source("other_metrics.R")
+
+get_variationInformation("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt")  # 
+get_variationInformation("out_Arrowhead/arrowhead_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt", gapsAsDomains = TRUE)  # 
+get_variationInformation("out_Arrowhead/arrowhead_final_domains.txt", "out_TopDom/topDom_final_domains.txt") #
+get_variationInformation("out_CaTCH/CaTCH_final_domains.txt", "out_TopDom/topDom_final_domains.txt") # 
+get_variationInformation("out_HiCseg/hicseg_final_domains.txt", "out_TopDom/topDom_final_domains.txt") #
+get_variationInformation("out_HiCseg/hicseg_final_domains.txt", "out_CaTCH/CaTCH_final_domains.txt") #
+get_variationInformation("out_HiCseg/hicseg_final_domains.txt", "out_Arrowhead/arrowhead_final_domains.txt") #
+
+
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
+get_variationInformation(topdom_dt, catch_dt) # 0.67
+get_variationInformation(topdom_dt, arrowhead_dt) # 0.53
+get_variationInformation(arrowhead_dt, catch_dt) #  0.52
+get_MoC(hicseg_dt, arrowhead_dt) # 
+get_MoC(hicseg_dt, catch_dt) # 
+get_MoC(hicseg_dt, topdom_dt) #
+
+
+###########################################################################################################################
+# similarity heatmap
+###########################################################################################################################
+
+topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+hicseg_dt <- read.delim("out_HiCseg/hicseg_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
+
+source("plot_TADlist_similarities.R")
+
+moc_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
+                                    "get_MoC", nCpu=1)
+plot(moc_plot[[1]])
+
+
+binJI_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
+                                      "get_bin_JaccardIndex", nCpu=1, 
+                                      binSize = bin_size)
+plot(binJI_plot[[1]])
 
 
 
+bdJI__plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
+                                      "get_boundaries_JaccardIndex", nCpu=1, 
+                                      tolRad = bin_size*2, matchFor="all")
+plot(bdJI_plot[[1]])
 
-  
-  
+
+tadmatch_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
+                                         "get_ratioMatchingTADs", nCpu=1, 
+                                         coverMatchRatioThresh = 0.8, matchFor="all")
+plot(tadmatch_plot[[1]])
+
+
+vi_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
+                                   "get_variationInformation", nCpu=1)
+plot(vi_plot[[1]])
+
+
+
+####################################################################################################################################################
+####################################################################################################################################################
+####################################################################################################################################################
+# toy stuff
+
+dt1 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
+dt2 <- data.frame(chromo="chr1", start=c(1,101,501,1001), end = c(100,500,1000,2000))
+
+get_MoC(dt1,dt2)
+get_MoC("moc_test1.txt", "moc_test2.txt")
+get_MoC("moc_test1.txt", "moc_test1b.txt")
+
+
