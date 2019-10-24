@@ -13,10 +13,13 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
       symmMetric <- FALSE
     }
   }
+  if(metric == "get_variationInformation")
+    symmMetric <- FALSE
+  
   if(!symmMetric)
     all_cmbs <- cbind(all_cmbs, all_cmbs[c(2,1),])  
   
-  if(metric == "variationInformation") {  # for VI, comparison with itselfs does not yield 1
+  if(metric == "get_variationInformation") {  # for VI, comparison with itselfs does not yield 1
     selfcmbs <- matrix( c(names(TAD_list), names(TAD_list)), nrow=2, byrow=TRUE)
     all_cmbs <- cbind(all_cmbs, selfcmbs)
   }
@@ -33,7 +36,7 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
       stringsAsFactors = FALSE
     )
   }
-  if(metric != "variationInformation") {
+  if(metric != "get_variationInformation") {
     selfdt <- data.frame(set1=names(TAD_list), set2=names(TAD_list), cmpValue=1, stringsAsFactors = FALSE)
     dt <- rbind(dt, selfdt)
   }
@@ -49,11 +52,18 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
   stopifnot(!is.na(dt$set1))
   stopifnot(!is.na(dt$set2))
   
+  
+  subTit <- metric_args[["matchFor"]]
+  if(is.null(subTit)) {
+    subTit <- ""
+  }
+  plotTit <- gsub("get_","", metric)
+  
   heatplot <- ggplot(data = dt, aes(x=set1, y=set2, fill=cmpValue)) + 
-    ggtitle(paste0(gsub("get_","", metric)), subtitle=paste0(metric_args["matchFor"]))+
+    ggtitle(paste0(plotTit), subtitle=paste0(subTit))+
     geom_tile()+
     geom_text(aes(label=cmpValue_rd),color = "black", size = 6, fontface="bold") +
-    labs(fill=paste0(metric))+
+    labs(fill=paste0(plotTit))+
     scale_fill_gradient(low=lowColor, high=highColor) +
     theme(
       plot.title = element_text(size=16, hjust=0.5, face = "bold"),

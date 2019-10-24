@@ -511,6 +511,9 @@ get_MoC(hicseg_dt, topdom_dt) #
 # similarity heatmap
 ###########################################################################################################################
 
+outHeightGG <- 7
+outWidthGG <- 7
+
 topdom_dt <- read.delim("out_TopDom/topDom_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 catch_dt <- read.delim("out_CaTCH/CaTCH_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
 arrowhead_dt <- read.delim("out_Arrowhead/arrowhead_final_domains.txt", header=FALSE, col.names=c("chromo", "start", "end"))
@@ -521,12 +524,15 @@ source("plot_TADlist_similarities.R")
 moc_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
                                     "get_MoC", nCpu=1)
 plot(moc_plot[[1]])
+ggsave(filename = "moc_plot.png", plot = moc_plot[[1]], height=outHeightGG, width=outWidthGG)
+
 
 
 binJI_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
                                       "get_bin_JaccardIndex", nCpu=1, 
                                       binSize = bin_size)
 plot(binJI_plot[[1]])
+ggsave(filename = "binJI_plot.png", plot = binJI_plot[[1]], height=outHeightGG, width=outWidthGG)
 
 
 
@@ -534,17 +540,18 @@ bdJI__plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=cat
                                       "get_boundaries_JaccardIndex", nCpu=1, 
                                       tolRad = bin_size*2, matchFor="all")
 plot(bdJI_plot[[1]])
-
+ggsave(filename = "bdJI__plot.png", plot = bdJI__plot[[1]], height=outHeightGG, width=outWidthGG)
 
 tadmatch_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
                                          "get_ratioMatchingTADs", nCpu=1, 
                                          coverMatchRatioThresh = 0.8, matchFor="all")
 plot(tadmatch_plot[[1]])
-
+ggsave(filename = "tadmatch_plot.png", plot = tadmatch_plot[[1]], height=outHeightGG, width=outWidthGG)
 
 vi_plot <- plot_TADlist_comparison(TAD_list= list(TopDom=topdom_dt, CaTCH=catch_dt, Arrowhead=arrowhead_dt, HiCseg=hicseg_dt),
                                    "get_variationInformation", nCpu=1)
 plot(vi_plot[[1]])
+ggsave(filename = "vi_plot.png", plot = vi_plot[[1]], height=outHeightGG, width=outWidthGG*1.2)
 
 
 

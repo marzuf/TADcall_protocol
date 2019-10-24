@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <title> CARPnTrees - Help </title>
+
+  <style>
+  p{
+    align:justify
+  }
+  </style>
+
+</head>
+
+<body>
+
+<h2> Help for CARPnTrees web application </h2>
+
+<h4> From ancient and recent polymorphism phylogenies to a consensus tree </h4>
+
+<p align="justify">
+This application can be used to build consensus tree from ancient and recent polymorphism phylogenies,
+as well as these latter ones. 
+The ancient polymorphism tree (haplogroup tree) gives the topology of the basis of the tree. 
+Then, recent polymorphism phylogeny is built for each subset of individuals that share the same haplogroup. 
+These "mini-trees" are appended at the corresponding tip of the haplogroup tree, resulting in a consensus tree (<a href="more_details.pdf" target="_blank">the methodology in details</a>).
+</p>
+
+<h4>Input data </h4>
+<h5><i> Recent polymorphism </i></h5>
+<p align="justify">
+<ul>
+<li> For analysis of mtDNA genetic data, input data should be aligned sequences in FASTA format.</li>
+<li> For analysis of Y-chromosome genetic data, input data should be a data frame containing 
+microsatellites data (individuals in rows, loci in columns; individual ID in the first column/row names).</li>
+</ul>
+</p>
+<h5> <i> Ancient polymorphism</i> </h5>
+<p align="justify">
+Ancient polymorphism data consist in the haplogroup of every individuals. They must be provided in a 
+table with individuals in rows, their ID as row names (first column) and their corresponding haplogroup in the first column after row names. 
+For paternal lineages, haplogroup data can be in the same file as the microsatellites data (first column after row names).
+</p>
+<h5> <i> Haplogroup tree</i> </h5>
+<p align="justify">
+The inputed haplogroup tree for mtDNA or Y-chromosome must be in Newick format. 
+If you do not have one, we provide one for maternal lineage (published <a href="http://www.mtdnacommunity.org" target="_blank">here</a>). 
+Unfortunately, the haplogroup tree for paternal lineage is not yet available.
+</p>
+<h4>Output </h4>
+<p> The outputed trees can be downloaded in Newick format and the plots can be saved in png format.</p>
+
+<h4> Source files </h4>
+The CARPnTrees program can also be launched from command line and is available in R and Python versions.
+Further explanations and all source files are available in our <a href="https://github.com/mzuer/CARPnTrees" target="_blank"> git repository </a>.
+
+
+</body>
+</html>
