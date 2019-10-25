@@ -122,6 +122,11 @@ shinyUI(fluidPage(
         ),
         ###### TAB WITH OVERVIEW OF LOADED DATA #####
         tabPanel("Loaded data",
+                 
+                 
+                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                  tags$div("Please wait - Datasets loading...",id="loading_message")),
+                 
                  tableOutput("loaded_data")
         ),
         ###### TAB WITH CURRENT SELECTED PARAMETERS #####
@@ -131,16 +136,58 @@ shinyUI(fluidPage(
         
         ###### TAB WITH CURRENT SELECTED PARAMETERS #####
         tabPanel("Dataset overview",
+                 
+                 
+                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                  tags$div("Please wait - Analysis running...",id="running_message")),
+                 
                  plotOutput("descFeatures")
         ),
         
         ###### TAB WITH THE SIMILARITY TABLE #####
         tabPanel("Similarity table",
-                 tableOutput("simTable")
+                 
+                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                  tags$div("Please wait - Analysis running...",id="running_message")),
+                 
+                 tableOutput("simTable"),
+                 
+                 HTML(    '</td>
+                          </tr>
+                          <tr>
+                               <td>
+                              <style>a#outputDwld{width:200px;height:30px;padding-top:5px;}</style>'),
+                 
+                 conditionalPanel(condition="! $('html').hasClass('shiny-busy')",
+                                  downloadButton('downloadSimTable', 'Download similarity table (.txt)'))
+                 
+                 
+                 
         ),
         ###### TAB WITH THE SIMILARITY HEATMAP #####
         tabPanel("Similarity heatmap",
-                 plotOutput("simHeatmap")
+                 
+                 conditionalPanel(condition="$('html').hasClass('shiny-busy')",
+                                  tags$div("Please wait - Analysis running...",id="running_message")),
+                 
+                 plotOutput("simHeatmap"),
+                 
+                 
+
+                 
+                 
+                 HTML(    '</td>
+                          </tr>
+                          <tr>
+                               <td>
+                              <style>a#outputDwld{width:200px;height:30px;padding-top:5px;}</style>'),
+                 conditionalPanel(condition="! $('html').hasClass('shiny-busy')",
+                                  downloadButton('downloadSimHeatmap', 'Download similarity heatmap (.png)'))
+                 
+                 
+                 
+                 
+                 
         ),
         ###### TAB WITH DETAILS ABOUT METRICS #####
         tabPanel("Details about the metrics",

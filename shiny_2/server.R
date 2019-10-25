@@ -23,7 +23,7 @@ library(ggplot2)
 library(ggpubr)
 
 demo_files <- list.files("data", pattern="_domains.txt", full.names = TRUE)
-
+demo_files <- demo_files[1:2]
 
 possible_metrics <- list("Measure of Concordance (MoC)" = "get_MoC", 
                          "Jaccard Index (bins)" = "get_bin_JaccardIndex",
@@ -48,6 +48,13 @@ heatmapHighCol <- "red"
 
 
 shinyServer(function(input, output){
+  
+  getSimMetric <- function() {
+    return(input$simMetric)
+  }
+  getFieldSep <- function() {
+    return(input$fieldSep)
+  }
   
   ###############################-----------------------------------------------------------------------------------
   ### Tab with help html file ###-----------------------------------------------------------------------------------
@@ -83,7 +90,8 @@ shinyServer(function(input, output){
       filenames <- input$allDomainFiles$name
       nameCols <- paste0("dataset", 1:length(domain_files))
     }
-    file_heads <- lapply(domain_files, function(x) head(read.table(x, header=fileHeader, sep=fieldSep, stringsAsFactors = FALSE, col.names=c("chromo", "start", "end"))))
+    file_heads <- lapply(domain_files, function(x) 
+      head(read.table(x, header=fileHeader, sep=fieldSep, stringsAsFactors = FALSE, col.names=c("chromo", "start", "end"))))
     names(file_heads) <- gsub("_final_domains.txt", "", filenames)
     file_heads
   })
@@ -169,7 +177,7 @@ shinyServer(function(input, output){
   ### Tab with similarity table      ###-----------------------------------------------------------------------------------
   ############################################-----------------------------------------------------------------------------------
   
-  output$simTable <- renderTable({
+  simTable <- reactive({
     
     getMetricArgs <- function(curr_metric) {
       if(curr_metric == "get_MoC") return(NULL)
@@ -203,10 +211,94 @@ shinyServer(function(input, output){
     return(outDt)
   })
   
+  output$simTable <- renderTable({
+    getMetricArgs <- function(curr_metric) {
+      if(curr_metric == "get_MoC") return(NULL)
+      if(curr_metric == "get_bin_JaccardIndex") return(list("binSize" = input$bin_size))
+      if(curr_metric == "get_boundaries_JaccardIndex") return(list("tolRad" = as.numeric(input$tol_rad), "matchFor"= input$simMatch))
+      if(curr_metric == "get_ratioMatchingTADs") return(list("coverMatchRatioThresh" = input$ratioCovMatch, "matchFor"=input$simMatch))
+      if(curr_metric == "get_variationInformation") return(NULL)
+    } 
+    if(input$demo) {
+      domain_files <- demo_files
+      fieldSep <- "\t"
+      fileHeader <- FALSE
+      filenames <- basename(demo_files)
+    } else{
+      domain_files <- input$allDomainFiles$datapath
+      fieldSep <- input$fieldSep
+      fileHeader <- input$fileHeader
+      filenames <- input$allDomainFiles$name
+    }
+    if(length(domain_files) < 2) {
+      return(HTML("! At least two files should be provided ! "))
+    }
+    all_domains_dt <- lapply(domain_files, function(x) read.table(x, header=fileHeader, stringsAsFactors = FALSE, col.names=c("chromo", "start", "end"), sep=fieldSep))
+    names(all_domains_dt) <- gsub("_final_domains.txt", "", filenames)
+    
+    metricOut <- do.call(plot_TADlist_comparison,
+                         c(list(all_domains_dt, metric=input$simMetric, lowColor=heatmapLowCol, highColor=heatmapHighCol, nCpu=input$nCpu),
+                           getMetricArgs(input$simMetric)))
+    outDt <- metricOut[[2]]
+    colnames(outDt)[3] <- names(possible_metrics)[possible_metrics == input$simMetric]
+    return(outDt)
+  })
+  
+  ###
+  ##### Functions to download the output DT #####
+  ###
+
+  output$downloadSimTable <- downloadHandler(
+    filename=paste0(getSimMetric(), "_simTable.txt"), # does not work without function call
+    content = function(file){
+      write.table(simTable(), file, col.names=TRUE, row.names=FALSE, quote=FALSE, sep=getFieldSep())
+    },
+    contentType = "text"
+  )
+  
+
+  
+  
   
   ############################################-----------------------------------------------------------------------------------
   ### Tab with similarity heatmap      ###-----------------------------------------------------------------------------------
   ############################################-----------------------------------------------------------------------------------
+  
+  
+  
+  simHeatmap <- reactive({
+    getMetricArgs <- function(curr_metric) {
+      if(curr_metric == "get_MoC") return(NULL)
+      if(curr_metric == "get_bin_JaccardIndex") return(list("binSize" = input$bin_size))
+      if(curr_metric == "get_boundaries_JaccardIndex") return(list("tolRad" = as.numeric(input$tol_rad), "matchFor"= input$simMatch))
+      if(curr_metric == "get_ratioMatchingTADs") return(list("coverMatchRatioThresh" = input$ratioCovMatch, "matchFor"=input$simMatch))
+      if(curr_metric == "get_variationInformation") return(NULL)
+    } 
+    if(input$demo) {
+      domain_files <- demo_files
+      fieldSep <- "\t"
+      fileHeader <- FALSE
+      filenames <- basename(demo_files)
+    } else{
+      domain_files <- input$allDomainFiles$datapath
+      fieldSep <- input$fieldSep
+      fileHeader <- input$fileHeader
+      filenames <- input$allDomainFiles$name
+    }
+    if(length(domain_files) < 2) {
+      return(HTML("! At least two files should be provided ! "))
+    }
+    all_domains_dt <- lapply(domain_files, function(x) read.table(x, header=F, stringsAsFactors = FALSE, col.names=c("chromo", "start", "end")))
+    names(all_domains_dt) <- gsub("_final_domains.txt", "", filenames)
+    
+    metricOut <- do.call(plot_TADlist_comparison,
+                         c(list(all_domains_dt, metric=input$simMetric, lowColor=heatmapLowCol, highColor=heatmapHighCol, nCpu=input$nCpu),
+                           getMetricArgs(input$simMetric)))
+    simPlot <- metricOut[[1]]
+    
+    return(simPlot)
+  })
+  
   
   output$simHeatmap <- renderPlot({
     getMetricArgs <- function(curr_metric) {
@@ -240,6 +332,19 @@ shinyServer(function(input, output){
     
     return(simPlot)
   })
+  
+  
+  ###
+  ##### Functions to download the output PNG #####
+  ###
+  output$downloadSimHeatmap <- downloadHandler(
+    filename=paste0(getSimMetric(), "_simHeatmap.png"),
+    content = function(file){
+      ggsave(filename = file, plot = simHeatmap())
+    },
+    contentType="image"
+  )
+  
   
   ##################################-----------------------------------------------------------------------------------
   ### Tab with contact html file ###-----------------------------------------------------------------------------------
