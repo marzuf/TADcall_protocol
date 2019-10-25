@@ -1,3 +1,5 @@
+# plot_TADlist_similarities.R
+
 plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor="red", nCpu=1, ...) {
   symmMetric <- TRUE
   require(doMC)
@@ -36,11 +38,12 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
       stringsAsFactors = FALSE
     )
   }
+  dt_save <- dt
   if(metric != "get_variationInformation") {
     selfdt <- data.frame(set1=names(TAD_list), set2=names(TAD_list), cmpValue=1, stringsAsFactors = FALSE)
     dt <- rbind(dt, selfdt)
   }
-  dt_save <- dt
+
   dt$cmpValue_rd <- round(dt$cmpValue, 2)
   
   tmp <- aggregate(cmpValue ~ set1, FUN=sum, data = dt)
@@ -51,7 +54,11 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
   dt$set2 <- factor(dt$set2, levels=rev(set_levels))
   stopifnot(!is.na(dt$set1))
   stopifnot(!is.na(dt$set2))
-  
+
+  dt_save$set1 <- factor(dt_save$set1, levels=(set_levels))
+  dt_save$set2 <- factor(dt_save$set2, levels=(set_levels))
+  dt_save <- dt_save[order(as.numeric(dt_save$set1), as.numeric(dt_save$set2)),]
+
   
   subTit <- metric_args[["matchFor"]]
   if(is.null(subTit)) {

@@ -90,6 +90,9 @@ get_bin_JaccardIndex <- function(file1, file2, binSize, chrSize=NULL, nCpu = 1){
 # requirement: GenomicRanges
 
 get_boundaries_JaccardIndex <- function(file1, file2, tolRad, matchFor="all", nCpu = 1){
+
+  stopifnot(length(tolRad) == 1)
+  stopifnot(is.numeric(tolRad))
   
   stopifnot(matchFor %in% c("set1", "set2", "all"))
   
@@ -152,6 +155,7 @@ get_boundaries_JaccardIndex <- function(file1, file2, tolRad, matchFor="all", nC
   bd2_DT <- bd2_DT[order(bd2_DT$bdPos),]
   cat(paste0("# of boundaries in set1\t=\t", nrow(bd1_DT), "\n"))
   cat(paste0("# of boundaries in set2\t=\t", nrow(bd2_DT), "\n"))
+
   
   if(matchFor %in% c("set1", "all")) {
     query1_GR <- GRanges(seqnames=mychr, ranges=IRanges(start=bd1_DT$bdPos, end=bd1_DT$bdPos))
