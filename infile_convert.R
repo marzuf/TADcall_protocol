@@ -2,11 +2,11 @@ startTime <- Sys.time()
 
 options(scipen=100)
 
-topDom_file <- "/media/electron/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
-topDom_file <- "//mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
-topDom_file_test <- "GM12878_chr6_25kb_matrix_pos_zero.txt_test"
-catch_file_test <- "GM12878_chr6_25kb_matrix_catch.txt_test"
-arrowhead_file_test <- "GM12878_chr6_25kb_matrix.pre"
+# topDom_file <- "/media/electron/mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
+# topDom_file <- "//mnt/etemp/marie/TADcall_yuanlong/25kb/input_caller/chr6/GM12878_chr6_25kb_matrix_pos_zero.txt"
+# topDom_file_test <- "GM12878_chr6_25kb_matrix_pos_zero.txt_test"
+# catch_file_test <- "GM12878_chr6_25kb_matrix_catch.txt_test"
+# arrowhead_file_test <- "GM12878_chr6_25kb_matrix.pre"
 
 
 if(! require(data.table)) {
@@ -20,7 +20,7 @@ if( !require(Matrix)){
 
 run_TopDom_to_CaTCH <- FALSE
 run_CaTCH_to_TopDom <- FALSE
-run_TopDom_to_arrowhead <- TRUE
+run_TopDom_to_arrowhead <- FALSE
 
 ##############################################################################################
 ############################################################################################## => TopDom -> CaTCH

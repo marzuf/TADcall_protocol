@@ -1,11 +1,12 @@
 # plot_TADlist_similarities.R
 
-plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor="red", nCpu=1, ...) {
+plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor="red", nCpu=1, plotTit = NULL,...) {
   symmMetric <- TRUE
   require(doMC)
   require(foreach)
   require(ggplot2)
   registerDoMC(nCpu)
+    source("get_MoC.R")
   metric_args <- list(...)
   
   all_cmbs <- combn(names(TAD_list), 2)
@@ -64,22 +65,25 @@ plot_TADlist_comparison <- function(TAD_list, metric, lowColor="blue", highColor
   if(is.null(subTit)) {
     subTit <- ""
   }
-  plotTit <- gsub("get_","", metric)
+  if(is.null(plotTit)) plotTit <- gsub("get_","", metric)
+
+  legTit <- gsub("get_","", metric)
   
   heatplot <- ggplot(data = dt, aes(x=set1, y=set2, fill=cmpValue)) + 
     ggtitle(paste0(plotTit), subtitle=paste0(subTit))+
     geom_tile()+
-    geom_text(aes(label=cmpValue_rd),color = "black", size = 6, fontface="bold") +
-    labs(fill=paste0(plotTit))+
+    geom_text(aes(label=cmpValue_rd),color = "black", size = 8, fontface="bold") +
+    labs(fill=paste0(legTit))+
     scale_fill_gradient(low=lowColor, high=highColor) +
     theme(
-      plot.title = element_text(size=16, hjust=0.5, face = "bold"),
-      plot.subtitle = element_text(size=14, hjust=0.5, face = "italic"),
+      plot.title = element_text(size=18, hjust=0.5, face = "bold", family = "Hershey"),
+      plot.subtitle = element_text(size=14, hjust=0.5, face = "italic", family = "Hershey"),
       panel.grid.major = element_blank(),
       panel.border = element_blank(),
       panel.background = element_blank(),
       axis.title = element_blank(),
-      axis.text = element_text(size=12)) 
+      axis.text = element_text(size=16, family = "Hershey") 
+    )
   if(symmMetric) {
     heatplot <- heatplot +
       theme(
