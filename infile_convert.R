@@ -7,7 +7,13 @@ options(scipen=100)
 # topDom_file_test <- "GM12878_chr6_25kb_matrix_pos_zero.txt_test"
 # catch_file_test <- "GM12878_chr6_25kb_matrix_catch.txt_test"
 # arrowhead_file_test <- "GM12878_chr6_25kb_matrix.pre"
+#topDom_file <- "GM12878_chr19_25kb_matrix_pos_zero.txt"
+#catch_file_test <- "CaTCH_v2.txt"
 
+# * CONTENT OF THE FILE:
+#TopDom_to_CaTCH
+#CaTCH_to_TopDom
+#TopDom_to_arrowhead
 
 if(! require(data.table)) {
   install.packages("data.table")
@@ -53,7 +59,7 @@ TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBas
     j <- j-1
   }
 
-  # CaTCH OUTUT FORMAT:  
+  # CaTCH OUTPUT FORMAT:  
   # col1 = chromosome
   # col2 = bin of the start region (genomic coordinate divided by binsize)
   # col3 = bin of the end region (genomic coordinate divided by binsize)
@@ -61,11 +67,12 @@ TopDom_to_CaTCH <- function(infile, outfile, inSep="\t", outSep="\t", outZeroBas
   
   out_dt <- data.frame(
     chromo = chromo,
-    binStart = i,
-    binEnd = j,
+    binStart = pmin(i,j),
+    binEnd = pmax(i,j),
     count = count_values,
     stringsAsFactors = FALSE
   ) 
+
   write.table(out_dt, file=outfile, row.names = FALSE, col.names = FALSE, sep=outSep, quote=FALSE)
   cat(paste0("... written: ", outfile, "\n"))
   

@@ -23,10 +23,10 @@ topDom_file <- input_file
 # # *************************** PART I: TAD calling *************************************************************************************************
 # ***************************************************************************************************************************************************
 
-runTopDom <- FALSE
-runCaTCH <- FALSE
-runArrowhead <- FALSE
-runHiCseg <- FALSE
+runTopDom <- TRUE
+runCaTCH <- TRUE
+runArrowhead <- TRUE
+runHiCseg <- TRUE
 
 runMoC <- TRUE
 runPlotMoC <- TRUE
@@ -58,6 +58,23 @@ topDom_out <- TopDom(topDom_file, window.size=5, outFile=topDom_outFile)
 # system.time(topDom_out <- TopDom(topDom_file, window.size=5, outFile=topDom_outFile))
 # user  system elapsed 
 # 54.278   0.632  54.915 
+
+head(topDom_out[["bed"]])
+# chrom chromStart chromEnd   name
+# 1  chr19          0    75000    gap
+# 6  chr19      75000   125000 domain
+# 7  chr19     125000   300000 domain
+head(topDom_out[["binSignal"]])
+# id   chr from.coord to.coord local.ext   mean.cf     pvalue
+# 1  1 chr19          0    25000      -0.5    0.0000 1.00000000
+# 2  2 chr19      25000    50000      -0.5    0.0000 1.00000000
+# 3  3 chr19      50000    75000      -0.5    0.0000 1.00000000
+head(topDom_out[["domain"]])
+# chr from.id from.coord to.id to.coord    tag   size
+# 1  chr19       1          0     3    75000    gap  75000
+# 6  chr19       4      75000     5   125000 domain  50000
+# 7  chr19       6     125000    12   300000 domain 175000
+
 
 ##### 2) prepare output
 topDom_tads_dt <- topDom_out[["bed"]]
@@ -95,7 +112,7 @@ cat(paste0("> START CaTCH\n"))
 # - in a terminal: R CMD INSTALL CaTCH_1.0.tar.gz # to install the package
 
 source("infile_convert.R")
-catch_file <- paste0("GM12878_", chromo, "_", binKb, "_", "kb_matrix_list.txt")
+catch_file <- paste0("GM12878_", chromo, "_", binKb, "kb_matrix_list.txt")
 stopifnot(file.exists(topDom_file))
 TopDom_to_CaTCH(infile=topDom_file, outfile=catch_file, outZeroBased=FALSE)
 stopifnot(file.exists(catch_file))
@@ -121,6 +138,13 @@ CaTCH_out <- domain.call(catch_file)
 ##### 2) prepare output
 CaTCH_dt <- CaTCH_out[["clusters"]]
 CaTCH_ndt <- CaTCH_out[["ncluster"]]
+
+head(CaTCH_dt, 3)
+head(CaTCH_ndt, 3)
+
+sum(CaTCH_ndt$ndomains[-1]) == nrow(CaTCH_dt)
+
+
 all_ri <- unique(CaTCH_dt$RI)
 ref_ri <- all_ri[which.min(abs(all_ri - ri_thresh))]  # not exact, e.g. 0.65 is infact 0.6499999999...
 cat(paste0("... selected RI thresh\t=\t", round(ri_thresh,4),"\n"))
@@ -273,6 +297,8 @@ cat(paste0("> START HiCseg\n"))
 hicseg_TADs_outFile <- file.path(paste0("out_HiCseg_", chromo), "HiCseg_final_domains.txt")
 dir.create(dirname(hicseg_TADs_outFile), recursive = TRUE)
 
+hicseg_out_outFile<- file.path(paste0("out_HiCseg_", chromo), paste0("HiCseg_out.Rdata"))
+
 # ! # of change points
 hicseg_model <- "D"
 hicseg_dist <- "G" # Gaussian for normalized data
@@ -305,11 +331,22 @@ HiCseg_out <- HiCseg_linkC_R(mat_data = hicseg_mat,
 #     user   system  elapsed 
 # 1861.582    6.838 1868.378 
   
+save(HiCseg_out, file=hicseg_out_outFile, version=2)
+head(HiCseg_out[["t_hat"]], 3)
+# [1] 3 5 8
+dim(HiCseg_out[["t_est_mat"]])
+# [1] 1000 1000
+head(HiCseg_out[["J"]], 3)
+# [1] -428043403793 -425303959943 -422151381277
+length(HiCseg_out[["J"]]) == hicseg_maxChangePoints
+# [1] TRUE
+dim(HiCseg_out[["t_est_mat"]]) == hicseg_maxChangePoints
+# [1] TRUE TRUE
 
 
 ### 2) prepare output
 changePoints_bin <- HiCseg_out[["t_hat"]]
-changePoints_bin <- changePoints_bin[changePoints_bin > 0]  # because if it found less change points than nb_change_max, wil fill with 0
+changePoints_bin <- changePoints_bin[changePoints_bin > 0]  # because if it found less change points than nb_change_max, will fill with 0
 
 chromoSize <- mat_size * bin_size
 changePoints <- changePoints_bin * bin_size
